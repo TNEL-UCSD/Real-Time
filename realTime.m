@@ -78,17 +78,35 @@ function plotButton_Callback(hObject, eventdata, handles)
 % hObject    handle to plotButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+%Init Vars
 set(hObject,'UserData',1);
 go=get(hObject,'UserData');
-i=1;
-t=linspace(-5,5);
-while go
-    plot(t,sin(i*t))
-    drawnow
-    go=get(hObject,'UserData');
-    i=i+1e-3;
+simDataBool=0;
+hudpr=dsp.UDPReceiver;
+hudpr.LocalIPPort=9930;
+
+% i=1;
+% t=linspace(-5,5);
+
+while get(hObject,'UserData');
+    
+    D=readUdpPackets(hudpr);
+    tmp=D.amplifierData(1,1,:);
+    x=tmp(:);
+    t=1:length(x);
+    plot(handles.p11,t,x)    
+    drawnow 
+    
+    
+    
+%     plot(t,sin(i*t))
+%     drawnow
+%     go=get(hObject,'UserData');
+%     i=i+1e-3;
 end
 
+release(hudpr);
 
 
 function channelsp1_Callback(hObject, eventdata, handles)
