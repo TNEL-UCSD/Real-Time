@@ -18,7 +18,7 @@ while numDataStreams==-1
     end
 end
 
-auxliaryData=nan(numDataStreams,3,numSamplesKept);
+auxiliaryData=nan(numDataStreams,3,numSamplesKept);
 amplifierData=nan(numDataStreams,numChannels,numSamplesKept);
 
 
@@ -40,7 +40,7 @@ for t=1:numSamplesKept
         % Read auxiliary results
         for channel=1:3
             for stream=1:numDataStreams
-                auxliaryData(stream,channel,t)=convertUsbWord(usbBuffer,index);
+                auxiliaryData(stream,channel,t)=convertUsbWord(usbBuffer,index);
                 index=index+2;
             end
         end
@@ -75,7 +75,7 @@ for t=1:numSamplesKept
         
         % Send data to GUI
         D.timeStamp=timeStamp;
-        D.auxliaryData=auxliaryData;
+        D.auxiliaryData=auxiliaryData;
         D.amplifierData=amplifierData;
         D.boardAdcData=boardAdcData;
         D.ttlIn=ttlIn;

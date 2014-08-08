@@ -91,8 +91,9 @@ hudpr.LocalIPPort=9930;
 
 while get(hObject,'UserData');
     
-    D=readUdpPackets(hudpr);
-    tmp=D.amplifierData(1,1,:);
+    rawD=readUdpPackets(hudpr);
+    D=convertUnits(rawD);
+    tmp=D.amplifierPreFilter(1,1,:);
     x=tmp(:);
     t=1:length(x);
     plot(handles.p11,t,x)    
@@ -438,3 +439,45 @@ function stopButton_Callback(hObject, eventdata, handles)
 
 set(handles.plotButton,'UserData',0); % stop running
 guidata(hObject, handles);
+
+function D=convertUnits(rawD)
+%Converts rawD units (eg ADC value) to physical unit (eg microVolts)
+%Copied from signalprocessor.cpp, line 575
+
+% Load and scale RHD2000 amplifier waveforms
+%(sampled at amplifier sampling rate)
+D.amplifierPreFilter= 0.195 * rawD.amplifierData - 32768; %microVolts
+
+%Load and scale RHD2000 auxiliary input waveforms
+%(sampled at 1/4 amplifier sampling rate)
+t=1; 
+i=1;
+while t<size(rawD.auxiliaryData,3)-1
+    D.auxChannel(:,1,i)= 0.0000374 * rawD.auxiliaryData(:,2,t+1);
+    D.auxChannel(:,2,i)= 0.0000374 * rawD.auxiliaryData(:,2,t+2);
+    D.auxChannel(:,3,i)= 0.0000374 * rawD.auxiliaryData(:,2,t+3);
+    t=t+4;
+    i=i+1;
+end
+
+%Load and scale RHD2000 supply voltage and temperature sensor waveforms
+%(sampled at 1/60 amplifier sampling rate)
+%Supply voltage wavefrom units = volts
+%Temperature sensor waveform units = degrees C
+
+D.supplyVoltage=rawD.auxiliaryData(:,2,29);
+D.tempRaw=rawD.auxiliaryData(:,1,21)- ...
+    rawD.auxiliaryData(:,2,13)./98.9 - 273.15;
+
+
+%Load and scale USB interface board ADC waveforms
+%(sampled at amplifier sampling rate)
+D.boardAdc=  0.000050354 * rawD.boardAdcData;
+
+D.ttlIn=rawD.ttlIn;
+D.ttlOut=rawD.ttlOut;
+   
+
+
+
+
