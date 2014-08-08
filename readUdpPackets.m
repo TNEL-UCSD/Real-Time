@@ -1,29 +1,36 @@
-function rawD=readUdpPackets(hudpr)
+function rawD=readUdpPackets(hudpr,simData)
 
 %Init Vars
 numChannels=32;
-numSamplesKept=50; %samples
+numSamplesKept=100; %samples
 timeStamp=nan(numSamplesKept,1);
 boardAdcData=nan(8,numSamplesKept);
-ttlIn=nan(numSamplesKept);
-ttlOut=nan(numSamplesKept);
+ttlIn=nan(numSamplesKept,1);
+ttlOut=nan(numSamplesKept,1);
 numDataStreams=-1;
 t=1;
-D=[];
+rawD=[];
+z=1;
 
 while numDataStreams==-1
     usbBuffer=step(hudpr);
     if ~isempty(usbBuffer)
         numDataStreams=usbBuffer(1);
     end
+    
+    if z>1e4
+        warndlg('Make sure Intan Software is Running')
+        z=1;
+    end
+    
+    z=z+1;
 end
 
 auxiliaryData=nan(numDataStreams,3,numSamplesKept);
 amplifierData=nan(numDataStreams,numChannels,numSamplesKept);
 
-
 for t=1:numSamplesKept
-    pause(0.005);
+    %pause(0.005);
     usbBuffer=step(hudpr);
     
     if ~isempty(usbBuffer)
@@ -73,15 +80,28 @@ for t=1:numSamplesKept
             error('Error Reading UDP Packet!');
         end
         
-        % Send data to GUI
-        D.timeStamp=timeStamp;
-        D.auxiliaryData=auxiliaryData;
-        D.amplifierData=amplifierData;
-        D.boardAdcData=boardAdcData;
-        D.ttlIn=ttlIn;
-        D.ttlOut=ttlOut;
     end
 end
+
+
+% Some more error checking
+for i=1:numSamplesKept-1
+    y=timeStamp(i+1)-timeStamp(i);
+    val=sum(~(y==1))/numSamplesKept*100;
+    str=sprintf('Warning: Timeline may not purely sequential, %0.5g%\n' ...
+        ,val);
+    disp(str)
+end
+
+% Send data to GUI
+rawD.timeStamp=timeStamp;
+rawD.auxiliaryData=auxiliaryData;
+rawD.amplifierData=amplifierData;
+rawD.boardAdcData=boardAdcData;
+rawD.ttlIn=ttlIn;
+rawD.ttlOut=ttlOut;
+
+
 
 
     function result=convertUsbTimeStamp(usbBuffer,index)

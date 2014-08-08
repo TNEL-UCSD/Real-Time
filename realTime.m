@@ -22,7 +22,7 @@ function varargout = realTime(varargin)
 
 % Edit the above text to modify the response to help realTime
 
-% Last Modified by GUIDE v2.5 05-Aug-2014 12:41:30
+% Last Modified by GUIDE v2.5 08-Aug-2014 10:56:21
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -72,43 +72,6 @@ function varargout = realTime_OutputFcn(hObject, eventdata, handles)
 % Get default command line output from handles structure
 varargout{1} = handles.output;
 
-
-% --- Executes on button press in plotButton.
-function plotButton_Callback(hObject, eventdata, handles)
-% hObject    handle to plotButton (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-%Init Vars
-set(hObject,'UserData',1);
-hudpr=dsp.UDPReceiver;
-hudpr.LocalIPPort=9930;
-simData=1;
-
-
-while get(hObject,'UserData');
-    
-    if simData
-        rawD=simulateData();
-    else
-        rawD=readUdpPackets(hudpr,simData);
-    end
-    D=convertUnits(rawD);
-    tmp=D.amplifierPreFilter(1,1,:);
-    x=tmp(:);
-    t=1:length(x);
-    plot(handles.p11,t,x)    
-    drawnow 
-    
-    
-    
-%     plot(t,sin(i*t))
-%     drawnow
-%     go=get(hObject,'UserData');
-%     i=i+1e-3;
-end
-
-release(hudpr);
 
 
 function channelsp1_Callback(hObject, eventdata, handles)
@@ -447,7 +410,7 @@ function D=convertUnits(rawD)
 
 % Load and scale RHD2000 amplifier waveforms
 %(sampled at amplifier sampling rate)
-D.amplifierPreFilter= 0.195 * rawD.amplifierData - 32768; %microVolts
+D.amplifierPreFilter= 0.195 * (rawD.amplifierData - 32768); %microVolts
 
 %Load and scale RHD2000 auxiliary input waveforms
 %(sampled at 1/4 amplifier sampling rate)
@@ -466,9 +429,9 @@ end
 %Supply voltage wavefrom units = volts
 %Temperature sensor waveform units = degrees C
 
-D.supplyVoltage=rawD.auxiliaryData(:,2,29);
-D.tempRaw=rawD.auxiliaryData(:,1,21)- ...
-    rawD.auxiliaryData(:,2,13)./98.9 - 273.15;
+D.supplyVoltage=rawD.auxiliaryData(:,2,1);
+D.tempRaw=rawD.auxiliaryData(:,1,1)- ...
+    rawD.auxiliaryData(:,2,1)./98.9 - 273.15;
 
 
 %Load and scale USB interface board ADC waveforms
@@ -489,3 +452,107 @@ rawD.ttlIn=1;
 rawD.ttlOut=1;
 
 
+% --- Executes on button press in plotButton.
+function plotButton_Callback(hObject, eventdata, handles)
+% hObject    handle to plotButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+%Init Vars
+set(hObject,'UserData',1);
+hudpr=dsp.UDPReceiver;
+hudpr.LocalIPPort=9930;
+hudpr.ReceiveBufferSize=8192*2^3;
+hudpr.MaximumMessageLength=2^11-1;
+
+simData=0;
+initFlag=0;
+blocks=10;
+
+
+while get(hObject,'UserData');    
+    
+    if simData
+        rawD=simulateData();
+    else
+        rawD=readUdpPackets(hudpr,simData);
+    end
+    
+    
+    if initFlag==0
+        
+        [numDataStreams,numChannels,numSamplesKept]= ...
+        size(rawD.amplifierData);
+    
+        D.amplifierData=nan(numDataStreams,numChannels, ...
+            numSamplesKept*blocks);
+        D.auxiliaryData=nan(numDataStreams,3,numSamplesKept*blocks);
+        D.boardAdcData=nan(8,numSamplesKept*blocks);
+        D.ttlIn=nan(numSamplesKept*blocks,1);
+        D.ttlOut=nan(numSamplesKept*blocks,1);
+        D.timeStamp=nan(numSamplesKept*blocks,1);
+        
+        for b=1:blocks                        
+            %Concat Blocks            
+            D.amplifierData(:,:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+                = rawD.amplifierData;
+            D.auxiliaryData(:,:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+                = rawD.auxiliaryData;
+            D.boardAdcData(:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+                = rawD.boardAdcData;
+            D.ttlIn((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+                = rawD.ttlIn;
+            D.ttlOut((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+                = rawD.ttlOut;
+            D.timeStamp((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+                = rawD.timeStamp;
+            
+            %Generate One Block
+            if b<blocks
+                if simData
+                    rawD=simulateData();
+                else
+                    rawD=readUdpPackets(hudpr,simData);
+                end
+            end
+            
+        end       
+        
+       toffset=D.timeStamp(1);
+       initFlag=initFlag+1;
+       
+    else
+        
+        %Generate One Block       
+        D.amplifierData(:,:,1:(blocks-1)*numSamplesKept)= ... 
+            D.amplifierData(:,:,numSamplesKept+1:blocks*numSamplesKept);
+        D.amplifierData(:,:,(blocks-1)*numSamplesKept+1:end)= ... 
+            rawD.amplifierData;
+        D.timeStamp(1:(blocks-1)*numSamplesKept)= ... 
+            D.timeStamp(numSamplesKept+1:blocks*numSamplesKept);
+        D.timeStamp((blocks-1)*numSamplesKept+1:end)= ... 
+            rawD.timeStamp;
+        
+    end
+    
+    %Converts units
+    nD=convertUnits(D);   
+    
+    tmp=nD.amplifierPreFilter(1,1,:);
+    x=tmp(:);
+    t=D.timeStamp-toffset;    
+    plot(handles.p11,1:numSamplesKept*blocks,t) 
+    %plot(handles.p11,t,x);
+   
+    
+    drawnow 
+    
+    
+    
+%     plot(t,sin(i*t))
+%     drawnow
+%     go=get(hObject,'UserData');
+%     i=i+1e-3;
+end
+
+release(hudpr);
