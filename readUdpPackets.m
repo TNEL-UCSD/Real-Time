@@ -1,4 +1,4 @@
-function D=readUdpPackets(hudpr)
+function rawD=readUdpPackets(hudpr)
 
 %Init Vars
 numChannels=32;

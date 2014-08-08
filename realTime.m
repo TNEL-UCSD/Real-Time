@@ -81,17 +81,18 @@ function plotButton_Callback(hObject, eventdata, handles)
 
 %Init Vars
 set(hObject,'UserData',1);
-go=get(hObject,'UserData');
-simDataBool=0;
 hudpr=dsp.UDPReceiver;
 hudpr.LocalIPPort=9930;
+simData=1;
 
-% i=1;
-% t=linspace(-5,5);
 
 while get(hObject,'UserData');
     
-    rawD=readUdpPackets(hudpr);
+    if simData
+        rawD=simulateData();
+    else
+        rawD=readUdpPackets(hudpr,simData);
+    end
     D=convertUnits(rawD);
     tmp=D.amplifierPreFilter(1,1,:);
     x=tmp(:);
@@ -476,8 +477,15 @@ D.boardAdc=  0.000050354 * rawD.boardAdcData;
 
 D.ttlIn=rawD.ttlIn;
 D.ttlOut=rawD.ttlOut;
-   
 
 
+function rawD=simulateData()
+
+rawD.auxiliaryData=1;
+rawD.amplifierData=1;
+rawD.timeStamp=1;
+rawD.boardAdcData=1;
+rawD.ttlIn=1;
+rawD.ttlOut=1;
 
 
