@@ -19,7 +19,8 @@ while numDataStreams==-1
     end
     
     if z>1e4
-        warndlg('Make sure Intan Software is Running')
+        f=warndlg('Make sure Intan Software is Running');
+        uiwait(f)
         z=1;
     end
     

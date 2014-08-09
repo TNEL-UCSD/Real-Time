@@ -469,6 +469,9 @@ simData=0;
 initFlag=0;
 blocks=10;
 
+dataMax=1e5;
+recordData=[];
+
 
 while get(hObject,'UserData');    
     
@@ -542,11 +545,17 @@ while get(hObject,'UserData');
     x=tmp(:);
     t=D.timeStamp-toffset;    
     plot(handles.p11,1:numSamplesKept*blocks,t) 
-    %plot(handles.p11,t,x);
-   
+    %plot(handles.p11,t,x);    
     
-    drawnow 
+    recordData=[recordData ; t((blocks-1)*numSamplesKept+1:end)];
+    disp(length(recordData))
     
+    if length(recordData)>dataMax
+        save('recordData.mat','recordData');
+        error('Ending Execution');
+    end
+    
+    drawnow     
     
     
 %     plot(t,sin(i*t))
