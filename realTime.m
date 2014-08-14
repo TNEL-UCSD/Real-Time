@@ -440,6 +440,7 @@ D.boardAdc=  0.000050354 * rawD.boardAdcData;
 
 D.ttlIn=rawD.ttlIn;
 D.ttlOut=rawD.ttlOut;
+D.timeStamp=rawD.timeStamp;
 
 
 function rawD=simulateData()
@@ -460,16 +461,16 @@ function plotButton_Callback(hObject, eventdata, handles)
 
 %Init Vars
 set(hObject,'UserData',1);
-hudpr=dsp.UDPReceiver;
-hudpr.LocalIPPort=9930;
-hudpr.ReceiveBufferSize=8192*2^3;
-hudpr.MaximumMessageLength=2^11-1;
+% hudpr=dsp.UDPReceiver;
+% hudpr.LocalIPPort=9930;
+% hudpr.ReceiveBufferSize=8192*2^3;
+% hudpr.MaximumMessageLength=2^11-1;
 
 simData=0;
 initFlag=0;
 blocks=10;
 
-dataMax=1e5;
+dataMax=1e4;
 recordData=[];
 
 
@@ -478,90 +479,90 @@ while get(hObject,'UserData');
     if simData
         rawD=simulateData();
     else
-        rawD=readUdpPackets(hudpr,simData);
+        rawD=readUdpPackets(simData);
     end
     
-    
-    if initFlag==0
-        
-        [numDataStreams,numChannels,numSamplesKept]= ...
-        size(rawD.amplifierData);
-    
-        D.amplifierData=nan(numDataStreams,numChannels, ...
-            numSamplesKept*blocks);
-        D.auxiliaryData=nan(numDataStreams,3,numSamplesKept*blocks);
-        D.boardAdcData=nan(8,numSamplesKept*blocks);
-        D.ttlIn=nan(numSamplesKept*blocks,1);
-        D.ttlOut=nan(numSamplesKept*blocks,1);
-        D.timeStamp=nan(numSamplesKept*blocks,1);
-        
-        for b=1:blocks                        
-            %Concat Blocks            
-            D.amplifierData(:,:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-                = rawD.amplifierData;
-            D.auxiliaryData(:,:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-                = rawD.auxiliaryData;
-            D.boardAdcData(:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-                = rawD.boardAdcData;
-            D.ttlIn((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-                = rawD.ttlIn;
-            D.ttlOut((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-                = rawD.ttlOut;
-            D.timeStamp((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-                = rawD.timeStamp;
-            
-            %Generate One Block
-            if b<blocks
-                if simData
-                    rawD=simulateData();
-                else
-                    rawD=readUdpPackets(hudpr,simData);
-                end
-            end
-            
-        end       
-        
-       toffset=D.timeStamp(1);
-       initFlag=initFlag+1;
-       
-    else
-        
-        %Generate One Block       
-        D.amplifierData(:,:,1:(blocks-1)*numSamplesKept)= ... 
-            D.amplifierData(:,:,numSamplesKept+1:blocks*numSamplesKept);
-        D.amplifierData(:,:,(blocks-1)*numSamplesKept+1:end)= ... 
-            rawD.amplifierData;
-        D.timeStamp(1:(blocks-1)*numSamplesKept)= ... 
-            D.timeStamp(numSamplesKept+1:blocks*numSamplesKept);
-        D.timeStamp((blocks-1)*numSamplesKept+1:end)= ... 
-            rawD.timeStamp;
-        
-    end
+    tic
+%     if initFlag==0
+%         
+%         [numDataStreams,numChannels,numSamplesKept]= ...
+%         size(rawD.amplifierData);
+%     
+%         D.amplifierData=nan(numDataStreams,numChannels, ...
+%             numSamplesKept*blocks);
+%         D.auxiliaryData=nan(numDataStreams,3,numSamplesKept*blocks);
+%         D.boardAdcData=nan(8,numSamplesKept*blocks);
+%         D.ttlIn=nan(numSamplesKept*blocks,1);
+%         D.ttlOut=nan(numSamplesKept*blocks,1);
+%         D.timeStamp=nan(numSamplesKept*blocks,1);
+%         
+%         for b=1:blocks                        
+%             %Concat Blocks            
+%             D.amplifierData(:,:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+%                 = rawD.amplifierData;
+%             D.auxiliaryData(:,:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+%                 = rawD.auxiliaryData;
+%             D.boardAdcData(:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+%                 = rawD.boardAdcData;
+%             D.ttlIn((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+%                 = rawD.ttlIn;
+%             D.ttlOut((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+%                 = rawD.ttlOut;
+%             D.timeStamp((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
+%                 = rawD.timeStamp;
+%             
+%             %Generate One Block
+%             if b<blocks
+%                 if simData
+%                     rawD=simulateData();
+%                 else
+%                     rawD=readUdpPackets(hudpr,simData);
+%                 end
+%             end
+%             
+%         end       
+%         
+%        toffset=D.timeStamp(1);
+%        initFlag=initFlag+1;
+%        
+%     else
+%         
+%         %Generate One Block       
+%         D.amplifierData(:,:,1:(blocks-1)*numSamplesKept)= ... 
+%             D.amplifierData(:,:,numSamplesKept+1:blocks*numSamplesKept);
+%         D.amplifierData(:,:,(blocks-1)*numSamplesKept+1:end)= ... 
+%             rawD.amplifierData;
+%         D.timeStamp(1:(blocks-1)*numSamplesKept)= ... 
+%             D.timeStamp(numSamplesKept+1:blocks*numSamplesKept);
+%         D.timeStamp((blocks-1)*numSamplesKept+1:end)= ... 
+%             rawD.timeStamp;
+%         
+%     end
     
     %Converts units
-    nD=convertUnits(D);   
+    %nD=convertUnits(D); 
+    %nD=convertUnits(rawD);
     
-    tmp=nD.amplifierPreFilter(1,1,:);
+    tmp=rawD.amplifierData(1,1,:);%PreFilter(1,1,:);
     x=tmp(:);
-    t=D.timeStamp-toffset;    
-    plot(handles.p11,1:numSamplesKept*blocks,t) 
+    t=rawD.timeStamp;%-toffset;    
+    %plot(handles.p11,1:numSamplesKept*blocks,t) 
+    plot(handles.p11,1:500,t)
     %plot(handles.p11,t,x);    
     
-    recordData=[recordData ; t((blocks-1)*numSamplesKept+1:end)];
+    %recordData=[recordData ; t((blocks-1)*numSamplesKept+1:end)];
+    recordData=[recordData; t];
     disp(length(recordData))
     
     if length(recordData)>dataMax
         save('recordData.mat','recordData');
         error('Ending Execution');
     end
+        
     
-    drawnow     
-    
-    
-%     plot(t,sin(i*t))
-%     drawnow
-%     go=get(hObject,'UserData');
-%     i=i+1e-3;
+    %plot(t,sin(i*t))
+    drawnow
+    toc
+
 end
 
-release(hudpr);

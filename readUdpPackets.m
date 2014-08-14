@@ -1,40 +1,46 @@
-function rawD=readUdpPackets(hudpr,simData)
+function rawD=readUdpPackets(simData)
 
 %Init Vars
 numChannels=32;
-numSamplesKept=100; %samples
+numSamplesKept=500; %samples
 timeStamp=nan(numSamplesKept,1);
 boardAdcData=nan(8,numSamplesKept);
 ttlIn=nan(numSamplesKept,1);
 ttlOut=nan(numSamplesKept,1);
-numDataStreams=-1;
+numDataStreams=2;
 t=1;
 rawD=[];
 z=1;
 
-while numDataStreams==-1
-    usbBuffer=step(hudpr);
-    if ~isempty(usbBuffer)
-        numDataStreams=usbBuffer(1);
-    end
-    
-    if z>1e4
-        f=warndlg('Make sure Intan Software is Running');
-        uiwait(f)
-        z=1;
-    end
-    
-    z=z+1;
-end
+% while numDataStreams==-1
+%     usbBuffer=step(hudpr);
+%     if ~isempty(usbBuffer)
+%         numDataStreams=usbBuffer(1);
+%     end
+%     
+%     if z>1e4
+%         f=warndlg('Make sure Intan Software is Running');
+%         uiwait(f)
+%         z=1;
+%     end
+%     
+%     z=z+1;
+% end
 
 auxiliaryData=nan(numDataStreams,3,numSamplesKept);
 amplifierData=nan(numDataStreams,numChannels,numSamplesKept);
 
 for t=1:numSamplesKept
-    %pause(0.005);
-    usbBuffer=step(hudpr);
+    %usbBuffer=step(hudpr);
+    usbBuffer=udpServer();
     
-    if ~isempty(usbBuffer)
+    while isempty(usbBuffer)
+        %pause(0.05);
+        %usbBuffer=step(hudpr);
+        usbBuffer=udpServer();
+    end
+    
+    %if ~isempty(usbBuffer)
         if ~(usbBuffer==numDataStreams)
             error('Number of Data Streams Changed Abortly!');
         end
@@ -81,7 +87,7 @@ for t=1:numSamplesKept
             error('Error Reading UDP Packet!');
         end
         
-    end
+    %end
 end
 
 
