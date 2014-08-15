@@ -465,6 +465,7 @@ set(hObject,'UserData',1);
 % hudpr.LocalIPPort=9930;
 % hudpr.ReceiveBufferSize=8192*2^3;
 % hudpr.MaximumMessageLength=2^11-1;
+s=udpServer('Open');
 
 simData=0;
 initFlag=0;
@@ -479,7 +480,7 @@ while get(hObject,'UserData');
     if simData
         rawD=simulateData();
     else
-        rawD=readUdpPackets(simData);
+        rawD=readUdpPackets(s,simData);
     end
     
     tic
@@ -556,13 +557,15 @@ while get(hObject,'UserData');
     
     if length(recordData)>dataMax
         save('recordData.mat','recordData');
+        udpServer('Close',s);
         error('Ending Execution');
     end
         
     
-    %plot(t,sin(i*t))
     drawnow
     toc
 
 end
+
+udpServer('Close',s);
 
