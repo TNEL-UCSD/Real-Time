@@ -7,7 +7,7 @@
 #include <mex.h>
 
 #define BUFLEN 177
-#define NPACK 100
+#define NUMSAMPLESRX 500
 #define PORT 9930
 
 void diep(char *s)
@@ -18,6 +18,7 @@ void diep(char *s)
 
 void udpOpen(int *s)
 {
+    
     struct sockaddr_in si_me;
     int s_in, i;
     
@@ -30,7 +31,7 @@ void udpOpen(int *s)
     si_me.sin_port = htons(PORT);
     si_me.sin_addr.s_addr = htonl(INADDR_ANY);
     if (bind(s_in, &si_me, sizeof(si_me))==-1)
-        diep("bind"); 
+        diep("bind");
     
     memcpy(s,&s_in,sizeof(s_in));
     
@@ -39,12 +40,17 @@ void udpOpen(int *s)
 void udpReceive(int s, unsigned char* data)
 {
     struct sockaddr_in si_other;
-    int slen=sizeof(si_other);
-    unsigned char buf[BUFLEN];
-    if (recvfrom(s, buf, BUFLEN, 0, &si_other, &slen)==-1)
-        diep("recvfrom()");
+    int slen=sizeof(si_other), st, i;    
     
-    memcpy(data,buf,BUFLEN);
+    for (i=0;i<NUMSAMPLESRX;i++) {
+        unsigned char buf[BUFLEN];
+        
+        if (recvfrom(s, buf, BUFLEN, 0, &si_other, &slen)==-1)
+            diep("recvfrom()");
+                
+        st=i*BUFLEN;
+        memcpy(&data[st],buf,BUFLEN);
+    }
 }
 
 void udpClose(int s)
@@ -91,19 +97,20 @@ void mexFunction( int nlhs, mxArray *plhs[],
     mxGetString(prhs[0],fun,strlen);
     /* printf("%s\n",fun); */
     
-    if (strcmp(fun,"Open")==0) { 
+    if (strcmp(fun,"Open")==0) {
         int *s;
         plhs[0]=mxCreateNumericMatrix(1,1,mxINT64_CLASS,0);
         s=mxGetData(plhs[0]);
         
+        mexLock();
         udpOpen(s);
     }
     
     if (strcmp(fun,"Receive")==0) {
         unsigned char* data;
         int s;
-        plhs[0] = mxCreateNumericMatrix(1,BUFLEN, mxUINT8_CLASS, mxREAL);        
-        data = mxGetData(plhs[0]);    
+        plhs[0] = mxCreateNumericMatrix(1,BUFLEN*NUMSAMPLESRX, mxUINT8_CLASS, mxREAL);
+        data = mxGetData(plhs[0]);
         s=mxGetScalar(prhs[1]);
         
         udpReceive(s,data);
@@ -114,5 +121,6 @@ void mexFunction( int nlhs, mxArray *plhs[],
         s=mxGetScalar(prhs[1]);
         
         udpClose(s);
+        mexUnlock();
     }
 }

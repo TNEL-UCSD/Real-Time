@@ -1,128 +1,82 @@
-function rawD=readUdpPackets(s,simData)
+function rawD=readUdpPackets(rawUsbBuffer)
 
 %Init Vars
 numChannels=32;
-numSamplesKept=500; %samples
-timeStamp=nan(numSamplesKept,1);
-boardAdcData=nan(8,numSamplesKept);
-ttlIn=nan(numSamplesKept,1);
-ttlOut=nan(numSamplesKept,1);
-numDataStreams=2;
-t=1;
+numDataStreams=double(rawUsbBuffer(1,1));
 rawD=[];
-z=1;
 
-% while numDataStreams==-1
-%     usbBuffer=step(hudpr);
-%     if ~isempty(usbBuffer)
-%         numDataStreams=usbBuffer(1);
-%     end
-%
-%     if z>1e4
-%         f=warndlg('Make sure Intan Software is Running');
-%         uiwait(f)
-%         z=1;
-%     end
-%
-%     z=z+1;
-% end
+if numDataStreams==2
+    bytesPerPac=178;
+elseif numDataStreams<=0
+    disp('Invalid Number of Data Streams!');
+    return;
+end
 
-auxiliaryData=nan(numDataStreams,3,numSamplesKept);
-amplifierData=nan(numDataStreams,numChannels,numSamplesKept);
+[bytesPerBuf,numBufs]=size(rawUsbBuffer);
 
-for t=1:numSamplesKept
-    %usbBuffer=step(hudpr);
-    usbBuffer=udpServer('Receive',s);
+tmp=find(rawUsbBuffer(1,:)==0);
+if ~isempty(tmp)
+    numBufs=tmp;
+end
+
+numPacsPerBuf=bytesPerBuf/bytesPerPac; %eqv to VLEN
+usbBuffer=uint8(zeros(numBufs*numPacsPerBuf,bytesPerPac));
+
+for buf=1:numBufs
     
-    while isempty(usbBuffer)
-        %usbBuffer=step(hudpr);
-        usbBuffer=udpServer('Receive',s);
-    end
-    
-    
-    if ~(usbBuffer==numDataStreams)
-        error('Number of Data Streams Changed Abortly!');
-    end
-    index=2;
-    
-    % Time Stamp
-    index=index+8;
-    timeStamp(t)=convertUsbTimeStamp(usbBuffer,index);
-    index=index+4;
-    
-    % Read auxiliary results
-    for channel=1:3
-        for stream=1:numDataStreams
-            auxiliaryData(stream,channel,t)=convertUsbWord(usbBuffer,index);
-            index=index+2;
-        end
-    end
-    
-    % Read amplifier channels
-    for channel=1:numChannels
-        for stream=1:numDataStreams
-            amplifierData(stream,channel,t)=convertUsbWord(usbBuffer,index);
-            index=index+2;
-        end
-    end
-    
-    % skip 36th filler word in each data stream
-    index=index+2*numDataStreams;
-    
-    % Read from AD5662 ADCS
-    for i=1:8
-        boardAdcData(i,t)= convertUsbWord(usbBuffer,index);
-        index=index+2;
-    end
-    
-    % Read TTL input and output values
-    ttlIn(t)=convertUsbWord(usbBuffer,index);
-    index=index+2;
-    
-    ttlOut(t)=convertUsbWord(usbBuffer,index);
-    
-    % Some error checking
-    if ~(index==176)
-        error('Error Reading UDP Packet!');
-    end
+    tmp=rawUsbBuffer(:,buf);
+    tmp=reshape(tmp,[],bytesPerPac);
+    st=(buf-1)*numPacsPerBuf+1;
+    usbBuffer(st:st+numPacsPerBuf-1,:)= tmp;
     
 end
 
-
-% % Some more error checking
-% y=nan(numSamplesKept-1,1);
-% for i=1:numSamplesKept-1
-%     y(i)=timeStamp(i+1)-timeStamp(i);
-%     val=sum(~(y==1))/numSamplesKept*100;
-%     str=sprintf('Warning: Timeline may not purely sequential, %0.5g%\n' ...
-%         ,val);
-%     disp(str)
-% end
-
-% Send data to GUI
-rawD.timeStamp=timeStamp;
-rawD.auxiliaryData=auxiliaryData;
-rawD.amplifierData=amplifierData;
-rawD.boardAdcData=boardAdcData;
-rawD.ttlIn=ttlIn;
-rawD.ttlOut=ttlOut;
-
-
-    function result=convertUsbTimeStamp(usbBuffer,index)
-        x1=usbBuffer(index);
-        x2=usbBuffer(index+1);
-        x3=usbBuffer(index+2);
-        x4=usbBuffer(index+3);
-        
-        result=bitshift(uint32(x4),24)+bitshift(uint32(x3),16)+ ...
-            bitshift(uint32(x2),8)+uint32(x1);
-        
+index=13;
+for channel=1:3
+    for stream=1:numDataStreams
+        rawD.auxiliaryData(stream,channel,:)=convertWord(usbBuffer(:,index:index+1));
+        index=index+2;
     end
+end
 
-    function result=convertUsbWord(usbBuffer,index)
-        x1=usbBuffer(index);
-        x2=usbBuffer(index+1);
-        result=bitshift(uint16(x2),8)+uint16(x1);
+for channel=1:numChannels
+    for stream=1:numDataStreams
+        rawD.amplifierData(stream,channel,:)=convertWord(usbBuffer(:,index:index+1));
+        index=index+2;
+    end
+end
+
+index=index+2*numDataStreams;
+
+for i=1:8
+    rawD.boardAdcData(i,:)=convertWord(usbBuffer(:,index:index+1));
+    index=index+2;
+end
+
+rawD.timeStamp=convertWord(usbBuffer(:,10:13));
+rawD.ttlIn=convertWord(usbBuffer(:,end-4:end-3));
+rawD.ttlOout=convertWord(usbBuffer(:,end-2:end-1));
+
+
+    function result=convertWord(mBytes)
+        %mBytes(i,j): where i indexes words and j bytes in increasing order
+        
+        numWords=size(mBytes,1);
+        numBytes=size(mBytes,2);
+        result=nan(256,1);
+        
+        if numBytes==2
+            byteSizeStr='uint16';
+        elseif numBytes==4
+            byteSizeStr='uint32';
+        else
+            error('There is an error in convert word');
+        end
+        
+        for iter=1:numWords
+            result(iter)=typecast(mBytes(iter,:),byteSizeStr);
+        end
+        
     end
 
 end

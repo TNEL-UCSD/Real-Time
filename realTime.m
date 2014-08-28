@@ -461,13 +461,14 @@ function plotButton_Callback(hObject, eventdata, handles)
 
 %Init Vars
 set(hObject,'UserData',1);
-% hudpr=dsp.UDPReceiver;
-% hudpr.LocalIPPort=9930;
-% hudpr.ReceiveBufferSize=8192*2^3;
-% hudpr.MaximumMessageLength=2^11-1;
-s=udpServer('Open');
 
-simData=0;
+simData=1;
+
+if ~simData
+    udpServer3('Open');
+    pause(1);
+end
+
 initFlag=0;
 blocks=10;
 
@@ -476,14 +477,17 @@ recordData=[];
 
 
 while get(hObject,'UserData');    
+
     
     if simData
-        rawD=simulateData();
+        rawUsbBuffer=uint8(ceil(256*rand(178000,4)));
+        rawUsbBuffer(1,:)=2;
     else
-        rawD=readUdpPackets(s,simData);
+        rawUsbBuffer=udpServer3('Read');        
     end
     
-    tic
+    rawD=readUdpPackets(rawUsbBuffer);
+    
 %     if initFlag==0
 %         
 %         [numDataStreams,numChannels,numSamplesKept]= ...
@@ -542,30 +546,33 @@ while get(hObject,'UserData');
     
     %Converts units
     %nD=convertUnits(D); 
-    %nD=convertUnits(rawD);
+    %nD=convertUnits(rawD);6
     
     tmp=rawD.amplifierData(1,1,:);%PreFilter(1,1,:);
     x=tmp(:);
     t=rawD.timeStamp;%-toffset;    
     %plot(handles.p11,1:numSamplesKept*blocks,t) 
-    plot(handles.p11,1:500,t)
+    plot(handles.p11,1:length(t),t)
     %plot(handles.p11,t,x);    
     
-    %recordData=[recordData ; t((blocks-1)*numSamplesKept+1:end)];
-    recordData=[recordData; t];
-    disp(length(recordData))
-    
-    if length(recordData)>dataMax
-        save('recordData.mat','recordData');
-        udpServer('Close',s);
-        error('Ending Execution');
-    end
+%     %recordData=[recordData ; t((blocks-1)*numSamplesKept+1:end)];
+%     recordData=[recordData; t];
+%     disp(length(recordData))
+%     
+%     if length(recordData)>dataMax
+%         save('recordData.mat','recordData');
+%         %udpServer('Close',s);
+%         udpServer2('Close');
+%         error('Ending Execution');
+%     end
         
     
-    drawnow
-    toc
+    drawnow   
 
 end
 
-udpServer('Close',s);
+if ~simData
+    udpServer3('Close');
+    clear mex;
+end
 
