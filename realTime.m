@@ -482,11 +482,14 @@ while get(hObject,'UserData');
     if simData
         rawUsbBuffer=uint8(ceil(256*rand(178000,4)));
         rawUsbBuffer(1,:)=2;
+        pause(0.2)  
     else
         rawUsbBuffer=udpServer3('Read');        
     end
-    
+        
+    tic
     rawD=readUdpPackets(rawUsbBuffer);
+    toc
     
 %     if initFlag==0
 %         

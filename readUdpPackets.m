@@ -73,9 +73,7 @@ rawD.ttlOout=convertWord(usbBuffer(:,end-2:end-1));
             error('There is an error in convert word');
         end
         
-        for iter=1:numWords
-            result(iter)=typecast(mBytes(iter,:),byteSizeStr);
-        end
+        result=typecastx(mBytes',byteSizeStr);
         
     end
 
