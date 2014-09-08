@@ -4,7 +4,7 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <mex.h>
-#include<pthread.h>
+#include <pthread.h>
 
 #define BUFSIZE 177
 #define PORT 9930
@@ -19,7 +19,7 @@ struct mmsghdr msgs[VLEN];
 struct iovec iovecs[VLEN];
 struct timespec timeout;
 unsigned char bufs[VLEN][BUFSIZE+1];
-unsigned char data[NUMBUFS][VLEN*(BUFSIZE+1)];
+unsigned char data[NUMBUFS+1][VLEN*(BUFSIZE+1)];
 
 int buffWriteIdx=0, numBuffFilled=0;
 pthread_t udpThread;
@@ -37,7 +37,7 @@ void udpReceiverThread()
     
     int retval=-1, buffWriteIdxTmp=buffWriteIdx;
     
-    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);    
     
     while (1) {
         
@@ -53,14 +53,10 @@ void udpReceiverThread()
             udpClose();
             exit(EXIT_FAILURE);
         }
-
+        
         memcpy(data[buffWriteIdx],bufs,(BUFSIZE+1)*VLEN);
         
-        /* Debug */
-        printf("buffWriteIdx: %d\n",buffWriteIdx);
-        printf("numBuffFilled: %d\n",numBuffFilled);
-        
-        if (buffWriteIdx+1>NUMBUFS)
+        if (buffWriteIdx+1>=NUMBUFS)
             buffWriteIdxTmp=0;
         else
             buffWriteIdxTmp=buffWriteIdxTmp+1;
@@ -73,8 +69,8 @@ void udpReceiverThread()
         /* END CRITICAL SECTION */
         
         pthread_testcancel();
-        
-    }   
+
+    }
     
 }
 
@@ -140,21 +136,22 @@ void udpOpen()
 
 void udpRead(unsigned char *dataOut)
 {
-    int stIdx, numBytes, stIdxA, numBytesA;
+    int stIdx, numBytes, stIdxA, numBuffA;    
+       
+    printf("Entered Read\n"); 
     
-    printf("Entered Read\n");
-    
-    /* Packet Buffer Critical Section */
+     /* Packet Buffer Critical Section */
     pthread_mutex_lock(&packetDataMutex);
+   
     stIdx=buffWriteIdx-numBuffFilled;
     numBytes=numBuffFilled*VLEN*(BUFSIZE+1);     
     
     /* Takes into account wrap around */
     if (stIdx<0) {
-        stIdxA=stIdx+NUMBUFS+2;
-        numBytesA=-1*stIdx-1;
-        memcpy(dataOut,data[stIdxA],numBytesA);
-        memcpy(dataOut,data[0],numBuffFilled-numBytesA);
+        stIdxA=stIdx+NUMBUFS;
+        numBuffA=-1*stIdx;
+        memcpy(dataOut,data[stIdxA],numBuffA*VLEN*(BUFSIZE+1));
+        memcpy(dataOut,data[0],(numBuffFilled-numBuffA)*VLEN*(BUFSIZE+1));
     }
     else        
         memcpy(dataOut,data[stIdx],numBytes);
@@ -194,6 +191,7 @@ void mexFunction( int nlhs, mxArray *plhs[],
     if (strcmp(fun,"Read")==0) {
         unsigned char *dataOut;
         plhs[0] = mxCreateNumericMatrix((BUFSIZE+1)*VLEN, NUMBUFS, mxUINT8_CLASS, mxREAL);
+        memset(plhs[0],1,sizeof(plhs[0]));
         dataOut = mxGetData(plhs[0]);
         
         udpRead(dataOut);

@@ -1,28 +1,18 @@
 udpServer3('Open');
 
-pause(5);
+pause(0.5);
 
 buf=udpServer3('Read');
-
-rawD=readUdpPackets(buf);
 
 udpServer3('Close');
 
 %%
-
-recordData=[];
 D=[];
-
-i=1;
-
-while buf(1,i)
-    rawD(i)=readUdpPackets(buf(:,i))
-    tmp=rawD(i).timeStamp;
-    recordData=[recordData ; tmp];
-    i=i+1;
-end
+[rawD,~]=readUdpPackets(buf);
 
 
+tmp=rawD.amplifierData(1,1,:);
+recordData=tmp(:);
 L=length(recordData);
 
 for i=1:L-1

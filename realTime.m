@@ -27,11 +27,11 @@ function varargout = realTime(varargin)
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
 gui_State = struct('gui_Name',       mfilename, ...
-                   'gui_Singleton',  gui_Singleton, ...
-                   'gui_OpeningFcn', @realTime_OpeningFcn, ...
-                   'gui_OutputFcn',  @realTime_OutputFcn, ...
-                   'gui_LayoutFcn',  [] , ...
-                   'gui_Callback',   []);
+    'gui_Singleton',  gui_Singleton, ...
+    'gui_OpeningFcn', @realTime_OpeningFcn, ...
+    'gui_OutputFcn',  @realTime_OutputFcn, ...
+    'gui_LayoutFcn',  [] , ...
+    'gui_Callback',   []);
 if nargin && ischar(varargin{1})
     gui_State.gui_Callback = str2func(varargin{1});
 end
@@ -63,7 +63,7 @@ guidata(hObject, handles);
 
 
 % --- Outputs from this function are returned to the command line.
-function varargout = realTime_OutputFcn(hObject, eventdata, handles) 
+function varargout = realTime_OutputFcn(hObject, eventdata, handles)
 % varargout  cell array for returning output args (see VARARGOUT);
 % hObject    handle to figure
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -414,7 +414,7 @@ D.amplifierPreFilter= 0.195 * (rawD.amplifierData - 32768); %microVolts
 
 %Load and scale RHD2000 auxiliary input waveforms
 %(sampled at 1/4 amplifier sampling rate)
-t=1; 
+t=1;
 i=1;
 while t<size(rawD.auxiliaryData,3)-1
     D.auxChannel(:,1,i)= 0.0000374 * rawD.auxiliaryData(:,2,t+1);
@@ -462,7 +462,7 @@ function plotButton_Callback(hObject, eventdata, handles)
 %Init Vars
 set(hObject,'UserData',1);
 
-simData=1;
+simData=0;
 
 if ~simData
     udpServer3('Open');
@@ -475,103 +475,59 @@ blocks=10;
 dataMax=1e4;
 recordData=[];
 
-
-while get(hObject,'UserData');    
-
-    
-    if simData
-        rawUsbBuffer=uint8(ceil(256*rand(178000,4)));
-        rawUsbBuffer(1,:)=2;
-        pause(0.2)  
-    else
-        rawUsbBuffer=udpServer3('Read');        
-    end
+while get(hObject,'UserData');
         
-    tic
-    rawD=readUdpPackets(rawUsbBuffer);
-    toc
-    
-%     if initFlag==0
-%         
-%         [numDataStreams,numChannels,numSamplesKept]= ...
-%         size(rawD.amplifierData);
-%     
-%         D.amplifierData=nan(numDataStreams,numChannels, ...
-%             numSamplesKept*blocks);
-%         D.auxiliaryData=nan(numDataStreams,3,numSamplesKept*blocks);
-%         D.boardAdcData=nan(8,numSamplesKept*blocks);
-%         D.ttlIn=nan(numSamplesKept*blocks,1);
-%         D.ttlOut=nan(numSamplesKept*blocks,1);
-%         D.timeStamp=nan(numSamplesKept*blocks,1);
-%         
-%         for b=1:blocks                        
-%             %Concat Blocks            
-%             D.amplifierData(:,:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-%                 = rawD.amplifierData;
-%             D.auxiliaryData(:,:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-%                 = rawD.auxiliaryData;
-%             D.boardAdcData(:,(b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-%                 = rawD.boardAdcData;
-%             D.ttlIn((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-%                 = rawD.ttlIn;
-%             D.ttlOut((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-%                 = rawD.ttlOut;
-%             D.timeStamp((b-1)*numSamplesKept+1:(b)*numSamplesKept) ...
-%                 = rawD.timeStamp;
-%             
-%             %Generate One Block
-%             if b<blocks
-%                 if simData
-%                     rawD=simulateData();
-%                 else
-%                     rawD=readUdpPackets(hudpr,simData);
-%                 end
-%             end
-%             
-%         end       
-%         
-%        toffset=D.timeStamp(1);
-%        initFlag=initFlag+1;
-%        
-%     else
-%         
-%         %Generate One Block       
-%         D.amplifierData(:,:,1:(blocks-1)*numSamplesKept)= ... 
-%             D.amplifierData(:,:,numSamplesKept+1:blocks*numSamplesKept);
-%         D.amplifierData(:,:,(blocks-1)*numSamplesKept+1:end)= ... 
-%             rawD.amplifierData;
-%         D.timeStamp(1:(blocks-1)*numSamplesKept)= ... 
-%             D.timeStamp(numSamplesKept+1:blocks*numSamplesKept);
-%         D.timeStamp((blocks-1)*numSamplesKept+1:end)= ... 
-%             rawD.timeStamp;
-%         
-%     end
-    
-    %Converts units
-    %nD=convertUnits(D); 
-    %nD=convertUnits(rawD);6
-    
-    tmp=rawD.amplifierData(1,1,:);%PreFilter(1,1,:);
-    x=tmp(:);
-    t=rawD.timeStamp;%-toffset;    
-    %plot(handles.p11,1:numSamplesKept*blocks,t) 
-    plot(handles.p11,1:length(t),t)
-    %plot(handles.p11,t,x);    
-    
-%     %recordData=[recordData ; t((blocks-1)*numSamplesKept+1:end)];
-%     recordData=[recordData; t];
-%     disp(length(recordData))
-%     
-%     if length(recordData)>dataMax
-%         save('recordData.mat','recordData');
-%         %udpServer('Close',s);
-%         udpServer2('Close');
-%         error('Ending Execution');
-%     end
+        if simData
+            rawUsbBuffer=uint8(ceil(256*rand(178000,4)));
+            rawUsbBuffer(1,:)=2;
+            [rawD,~]=readUdpPackets(rawUsbBuffer);
+        else
+            repeat=1;
+            timeOut=1;
+            while repeat || timeOut > 1000         
+                rawUsbBuffer=udpServer3('Read');
+                
+%                 rawUsbBuffer=uint8(ceil(256*rand(178000,4)));
+%                 rawUsbBuffer(1,:)=2;
+%                 repeat=0;
+                
+                [rawD,repeat]=readUdpPackets(rawUsbBuffer);  
+                timeOut=timeOut+1;
+                pause(0.2)
+                
+            end
+        end    
         
-    
-    drawnow   
-
+        
+        
+        tmp=rawD.amplifierData(1,1,:);%PreFilter(1,1,:);
+        x=tmp(:);
+        t=rawD.timeStamp;%-toffset;
+        if isequal(t(1:10),zeros(1,10))
+            udpServer3('Close')
+            clear mex;
+            disp('Entered here!');
+        end
+            
+            
+        %plot(handles.p11,1:numSamplesKept*blocks,t)
+        plot(handles.p11,1:length(t),t)
+        %plot(handles.p11,t,x);
+        
+        %     %recordData=[recordData ; t((blocks-1)*numSamplesKept+1:end)];
+        %     recordData=[recordData; t];
+        %     disp(length(recordData))
+        %
+        %     if length(recordData)>dataMax
+        %         save('recordData.mat','recordData');
+        %         %udpServer('Close',s);
+        %         udpServer2('Close');
+        %         error('Ending Execution');
+        %     end
+        
+        
+        drawnow    
+        
 end
 
 if ~simData
