@@ -11,8 +11,9 @@ D=[];
 [rawD,~]=readUdpPackets(buf);
 
 
-tmp=rawD.amplifierData(1,1,:);
-recordData=tmp(:);
+%tmp=rawD.amplifierData(1,1,:);
+%recordData=tmp(:);
+recordData=rawD.timeStamp;
 L=length(recordData);
 
 for i=1:L-1

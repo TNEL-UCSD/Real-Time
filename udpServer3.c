@@ -6,7 +6,7 @@
 #include <mex.h>
 #include <pthread.h>
 
-#define BUFSIZE 177
+#define BUFSIZE 178
 #define PORT 9930
 #define TIMEOUT 1
 #define VLEN 1000

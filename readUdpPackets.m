@@ -4,10 +4,10 @@ function [rawD,repeat]=readUdpPackets(rawUsbBuffer)
 repeat=0;
 numChannels=32;
 numDataStreams=double(rawUsbBuffer(1,1));
-rawD=[];
+rawD.sampleRate=double(rawUsbBuffer(1,2));
 
 if numDataStreams==2
-    bytesPerPac=178;
+    bytesPerPac=179;
 elseif numDataStreams<=0
     errstr=sprintf('Invalid numDataStreams or no data received!: %d',numDataStreams);
     repeat=myError(errstr);
@@ -34,7 +34,7 @@ for buf=1:numBufs
     
 end
 
-index=13;
+index=14;
 for channel=1:3
     for stream=1:numDataStreams
         rawD.auxiliaryData(stream,channel,:)=convertWord(usbBuffer(:,index:index+1));
@@ -56,18 +56,15 @@ for i=1:8
     index=index+2;
 end
 
-rawD.timeStamp=convertWord(usbBuffer(:,10:13));
+rawD.timeStamp=convertWord(usbBuffer(:,11:14));
 rawD.ttlIn=convertWord(usbBuffer(:,end-4:end-3));
 rawD.ttlOout=convertWord(usbBuffer(:,end-2:end-1));
-
 
 
     function result=convertWord(mBytes)
         %mBytes(i,j): where i indexes words and j bytes in increasing order
         
-        %numWords=size(mBytes,1);
         numBytes=size(mBytes,2);
-        %result=nan(256,1);
         
         if numBytes==2
             byteSizeStr='uint16';
@@ -77,9 +74,6 @@ rawD.ttlOout=convertWord(usbBuffer(:,end-2:end-1));
             error('There is an error in convert word');
         end
         
-%         for iter=1:numWords
-%             result(iter)=typecast(mBytes(iter,:),byteSizeStr);
-%         end
         result=typecastx(mBytes',byteSizeStr);
         
     end
