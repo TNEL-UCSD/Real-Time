@@ -83,6 +83,7 @@ function channelsp1_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of channelsp1 as a double
 
 
+
 % --- Executes during object creation, after setting all properties.
 function channelsp1_CreateFcn(hObject, eventdata, handles)
 % hObject    handle to channelsp1 (see GCBO)
@@ -104,6 +105,8 @@ function plotTypep1_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns plotTypep1 contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from plotTypep1
+guidata(hObject, handles);
+
 
 
 % --- Executes during object creation, after setting all properties.
@@ -127,7 +130,7 @@ function channelsp2_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of channelsp2 as text
 %        str2double(get(hObject,'String')) returns contents of channelsp2 as a double
-
+guidata(hObject, handles);
 
 % --- Executes during object creation, after setting all properties.
 function channelsp2_CreateFcn(hObject, eventdata, handles)
@@ -150,6 +153,7 @@ function plotTypep2_Callback(hObject, eventdata, handles)
 
 % Hints: contents = cellstr(get(hObject,'String')) returns plotTypep2 contents as cell array
 %        contents{get(hObject,'Value')} returns selected item from plotTypep2
+guidata(hObject, handles);
 
 
 % --- Executes during object creation, after setting all properties.
@@ -219,7 +223,7 @@ function lowp2_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of lowp2 as text
 %        str2double(get(hObject,'String')) returns contents of lowp2 as a double
-
+guidata(hObject, handles);
 
 % --- Executes during object creation, after setting all properties.
 function lowp2_CreateFcn(hObject, eventdata, handles)
@@ -242,7 +246,7 @@ function highp2_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of highp2 as text
 %        str2double(get(hObject,'String')) returns contents of highp2 as a double
-
+guidata(hObject, handles);
 
 % --- Executes during object creation, after setting all properties.
 function highp2_CreateFcn(hObject, eventdata, handles)
@@ -265,7 +269,7 @@ function lowp1_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of lowp1 as text
 %        str2double(get(hObject,'String')) returns contents of lowp1 as a double
-
+guidata(hObject, handles);
 
 % --- Executes during object creation, after setting all properties.
 function lowp1_CreateFcn(hObject, eventdata, handles)
@@ -288,7 +292,7 @@ function highp1_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of highp1 as text
 %        str2double(get(hObject,'String')) returns contents of highp1 as a double
-
+guidata(hObject, handles);
 
 % --- Executes during object creation, after setting all properties.
 function highp1_CreateFcn(hObject, eventdata, handles)
@@ -404,13 +408,32 @@ function stopButton_Callback(hObject, eventdata, handles)
 set(handles.plotButton,'UserData',0); % stop running
 guidata(hObject, handles);
 
+function rawUsbBuffer=simulateData()
+
+numBuffs=4;
+
+rawUsbBuffer=uint8(ceil(256*rand(179000,numBuffs)));
+rawUsbBuffer(1,:)=2;
+rawUsbBuffer(2,:)=16;
+
+
+function sChan=convertChanCtn(flatChan)
+
+flatChan=flatChan(:); %make a column vector
+numChannels=32;
+sChan=zeros(length(flatChan),2);
+
+sChan(:,1)=ceil(flatChan./numChannels);
+sChan(:,2)=rem(flatChan,numChannels);
+
+
 function D=convertUnits(rawD)
 %Converts rawD units (eg ADC value) to physical unit (eg microVolts)
 %Copied from signalprocessor.cpp, line 575
 
 % Load and scale RHD2000 amplifier waveforms
 %(sampled at amplifier sampling rate)
-D.amplifierPreFilter= 0.195 * (rawD.amplifierData - 32768); %microVolts
+D.amplifierPreFilter= 0.195 .* (rawD.amplifierData - 32768); %microVolts
 
 %Load and scale RHD2000 auxiliary input waveforms
 %(sampled at 1/4 amplifier sampling rate)
@@ -443,16 +466,6 @@ D.ttlOut=rawD.ttlOut;
 D.timeStamp=rawD.timeStamp;
 
 
-function rawD=simulateData()
-
-rawD.auxiliaryData=1;
-rawD.amplifierData=1;
-rawD.timeStamp=1;
-rawD.boardAdcData=1;
-rawD.ttlIn=1;
-rawD.ttlOut=1;
-
-
 % --- Executes on button press in plotButton.
 function plotButton_Callback(hObject, eventdata, handles)
 % hObject    handle to plotButton (see GCBO)
@@ -461,73 +474,200 @@ function plotButton_Callback(hObject, eventdata, handles)
 
 %Init Vars
 set(hObject,'UserData',1);
+simData=1;
+TW=1;
+SPTparams.tapers=[TW TW*2-1];
+PSDparams.tapers=[3 5];
 
-simData=0;
 
 if ~simData
     udpServer3('Open');
     pause(1);
 end
 
-initFlag=0;
-blocks=10;
-
-dataMax=1e4;
-recordData=[];
-
 while get(hObject,'UserData');
-        
-        if simData
-            rawUsbBuffer=uint8(ceil(256*rand(178000,4)));
-            rawUsbBuffer(1,:)=2;
-            [rawD,~]=readUdpPackets(rawUsbBuffer);
-        else
-            repeat=1;
-            timeOut=1;
-            while repeat || timeOut > 1000         
-                rawUsbBuffer=udpServer3('Read');
-                
-%                 rawUsbBuffer=uint8(ceil(256*rand(178000,4)));
-%                 rawUsbBuffer(1,:)=2;
-%                 repeat=0;
-                
-                [rawD,repeat]=readUdpPackets(rawUsbBuffer);  
-                timeOut=timeOut+1;
-                pause(0.2)
-                
-            end
-        end    
-        
-        
-        
-        tmp=rawD.amplifierData(1,1,:);%PreFilter(1,1,:);
-        x=tmp(:);
-        t=rawD.timeStamp;%-toffset;
-        if isequal(t(1:10),zeros(1,10))
-            udpServer3('Close')
-            clear mex;
-            disp('Entered here!');
+    
+    %Get Raw Data
+    if simData
+        rawUsbBuffer=simulateData();
+        [rawD,~]=readUdpPackets(rawUsbBuffer);
+    else
+        repeat=1;
+        timeOut=1;
+        while repeat || timeOut > 1000
+            rawUsbBuffer=udpServer3('Read');
+            [rawD,repeat]=readUdpPackets(rawUsbBuffer);
+            timeOut=timeOut+1;
+            pause(0.2)
+            
         end
-            
-            
-        %plot(handles.p11,1:numSamplesKept*blocks,t)
-        plot(handles.p11,1:length(t),t)
-        %plot(handles.p11,t,x);
+    end    
+    
+    %Perform Conversion
+    D=convertUnits(rawD);    
+    
+    %Parse Channels
+    tmp=get(handles.channelsp1,'String');
+    tmp=strsplit(tmp,',');
+    flatChan=cellfun(@str2num,tmp);
+    sChanp1=convertChanCtn(flatChan);
+    numP1Plots=size(sChanp1,1);
+    
+    tmp=get(handles.channelsp2,'String');
+    tmp=strsplit(tmp,',');
+    flatChan=cellfun(@str2num,tmp);
+    sChanp2=convertChanCtn(flatChan); 
+    numP2Plots=size(sChanp2,1);
+    
+    %Parse Plot Type
+    contents = cellstr(get(handles.plotTypep1,'String'));
+    plotTypep1Str = contents{get(handles.plotTypep1,'Value')};
+    
+    contents = cellstr(get(handles.plotTypep2,'String'));
+    plotTypep2Str = contents{get(handles.plotTypep2,'Value')};
+    
+    %Parse Filter Input
+    tmp=get(handles.lowp1,'String');
+    bfp1(1)=str2double(tmp); %low freq cutoff
+    tmp=get(handles.highp1,'String');
+    bfp1(2)=str2double(tmp); %high freq cuttoff
+    
+    tmp=get(handles.lowp2,'String');
+    bfp2(1)=str2double(tmp); %low freq cutoff
+    tmp=get(handles.highp2,'String');
+    bfp2(2)=str2double(tmp); %high freq cuttoff    
+    
+    %Get Signal of Interest
+    t=D.timeStamp;
+    
+    if simData
+        t=0:1/rawD.sampleRate:(length(D.timeStamp)-1)*1/rawD.sampleRate;
+    end
+    
+    SOIp1=zeros(length(t),numP1Plots);
+    SOIp2=zeros(length(t),numP2Plots);
+    
+    for i=1:numP1Plots
+        SOIp1(:,i)=squeeze(D.amplifierPreFilter(sChanp1(i,1),sChanp1(i,2),:));
+    end
+    
+    for i=1:numP2Plots
+        SOIp2(:,i)=squeeze(D.amplifierPreFilter(sChanp2(i,1),sChanp2(i,2),:));
+    end
         
-        %     %recordData=[recordData ; t((blocks-1)*numSamplesKept+1:end)];
-        %     recordData=[recordData; t];
-        %     disp(length(recordData))
-        %
-        %     if length(recordData)>dataMax
-        %         save('recordData.mat','recordData');
-        %         %udpServer('Close',s);
-        %         udpServer2('Close');
-        %         error('Ending Execution');
-        %     end
+    %Process and Plot Signals
+    %Portrait 1
+    
+    if strcmp(plotTypep1Str,'Raw Data')
+        
+        for i=1:numP1Plots
+            plotCmd=sprintf('plot(handles.p1%d,t,SOIp1(:,%d));',i,i);
+            eval(plotCmd);
+        end
+        
+    elseif strcmp(plotTypep1Str,'Spectrogram')
+        
+        SPTparams.Fs=rawD.sampleRate;
+        W=30/SPTparams.Fs;
+        movingwin=[W W/10];        
+        
+        %Filter
+        fltFlag=~((bfp1(1)<0.1)&& (bfp1(2)==Inf));
+        
+        if fltFlag            
+            SPTparams.fpass=[bfp1(1),bfp1(2)];           
+        end
+        
+        [S,tx,f]=mtspecgramc(SOIp1,movingwin,SPTparams);
+       
+        %Plot        
+        for i=1:numP1Plots
+            plotCmd1=sprintf('surf(handles.p1%d,f,tx,10*log10(abs(S(:,:,%d))),''EdgeColor'',''none'');',i,i);
+            plotCmd2=sprintf('axis(handles.p1%d,''tight'');',i);
+            plotCmd3=sprintf('view(handles.p1%d,2)',i);
+            eval(plotCmd1), eval(plotCmd2), eval(plotCmd3);
+        end       
+        
+    elseif strcmp(plotTypep1Str,'Power Spectrum Density')
+        
+        PSDparams.Fs=rawD.sampleRate;
+        
+        %Filter
+        fltFlag=~((bfp1(1)<0.1)&& (bfp1(2)==Inf));
+        
+        if fltFlag
+            PSDparams.fpass=[bfp1(1),bfp1(2)];
+        end
+              
+        [S,f]=mtspectrumc(SOIp1,PSDparams);
+        
+        %Plot
+        for i=1:numP1Plots
+            plotCmd=sprintf('semilogy(handles.p1%d,f,S(:,%d));',i,i);
+            eval(plotCmd);
+        end     
+        
+    else
+        error('Error when picking plot type');
+    end
+    
+    %Portrait 2
+    if strcmp(plotTypep2Str,'Raw Data')
+        
+        for i=1:numP2Plots
+            plotCmd=sprintf('plot(handles.p2%d,t,SOIp2(:,%d));',i,i);
+            eval(plotCmd);
+        end
+        
+    elseif strcmp(plotTypep2Str,'Spectrogram')
+        
+        SPTparams.Fs=rawD.sampleRate;
+        W=30/SPTparams.Fs;
+        movingwin=[W W/10];        
+        
+        %Filter
+        fltFlag=~((bfp2(1)<0.1)&& (bfp2(2)==Inf));
+        
+        if fltFlag            
+            SPTparams.fpass=[bfp2(1),bfp2(2)];           
+        end
+        
+        [S,tx,f]=mtspecgramc(SOIp2,movingwin,SPTparams);
+        
+        %Plot
+        for i=1:numP2Plots
+            plotCmd1=sprintf('surf(handles.p2%d,f,tx,10*log10(abs(S(:,:,%d))),''EdgeColor'',''none'');',i,i);
+            plotCmd2=sprintf('axis(handles.p2%d,''tight'');',i);
+            plotCmd3=sprintf('view(handles.p2%d,2)',i);
+            eval(plotCmd1), eval(plotCmd2), eval(plotCmd3);
+        end
         
         
-        drawnow    
+    elseif strcmp(plotTypep2Str,'Power Spectrum Density')
         
+        PSDparams.Fs=rawD.sampleRate;
+        
+        %Filter
+        fltFlag=~((bfp2(1)<0.1)&& (bfp2(2)==Inf));
+        
+        if fltFlag
+            PSDparams.fpass=[bfp2(1),bfp2(2)];
+        end
+        
+        [S,f]=mtspectrumc(SOIp2,PSDparams);
+        
+        %Plot
+        for i=1:numP2Plots
+            plotCmd=sprintf('semilogy(handles.p2%d,f,S(:,%d));',i,i);
+            eval(plotCmd);
+        end
+        
+    else
+        error('Error when picking plot type');
+    end
+    
+    drawnow
+    
 end
 
 if ~simData

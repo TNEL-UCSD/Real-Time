@@ -4,7 +4,8 @@ function [rawD,repeat]=readUdpPackets(rawUsbBuffer)
 repeat=0;
 numChannels=32;
 numDataStreams=double(rawUsbBuffer(1,1));
-rawD.sampleRate=double(rawUsbBuffer(1,2));
+sampleRate=double(rawUsbBuffer(2,1));
+rawD=[];
 
 if numDataStreams==2
     bytesPerPac=179;
@@ -12,6 +13,47 @@ elseif numDataStreams<=0
     errstr=sprintf('Invalid numDataStreams or no data received!: %d',numDataStreams);
     repeat=myError(errstr);
     return;
+end
+
+rawD.numActiveChannels=numDataStreams*numChannels;
+
+switch sampleRate
+    case 0
+        rawD.sampleRate=1e3;
+    case 1
+        rawD.sampleRate=1.25e3;
+    case 2
+        rawD.sampleRate=1.5e3;
+    case 3
+        rawD.sampleRate=2e3;
+    case 4
+        rawD.sampleRate=2.5e3;
+    case 5
+        rawD.sampleRate=3e3;
+    case 6
+        rawD.sampleRate=3.33e3;
+    case 7
+        rawD.sampleRate=4e3;
+    case 8
+        rawD.sampleRate=5e3;
+    case 9
+        rawD.sampleRate=6.25e3;
+    case 10
+        rawD.sampleRate=8e3;
+    case 11
+        rawD.sampleRate=10e3;
+    case 12
+        rawD.sampleRate=12.5e3;
+    case 13
+        rawD.sampleRate=15e3;
+    case 14
+        rawD.sampleRate=20e3;
+    case 15
+        rawD.sampleRate=25e3;
+    case 16
+        rawD.sampleRate=30e3;
+    otherwise
+        rawD.sampleRate=20e3;
 end
 
 [bytesPerBuf,~]=size(rawUsbBuffer);
@@ -58,7 +100,7 @@ end
 
 rawD.timeStamp=convertWord(usbBuffer(:,11:14));
 rawD.ttlIn=convertWord(usbBuffer(:,end-4:end-3));
-rawD.ttlOout=convertWord(usbBuffer(:,end-2:end-1));
+rawD.ttlOut=convertWord(usbBuffer(:,end-2:end-1));
 
 
     function result=convertWord(mBytes)
